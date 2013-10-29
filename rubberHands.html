@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title></title>
+    <style type="text/css">
+        #canvas {
+            width: 1200px;
+            height: 600px;
+            border: 1px #ddd dotted;
+        }
+    </style>
+</head>
+<body>
+<canvas id="canvas" width="1200" height="600"></canvas>
+<div id="controls">
+    Stroke Color:
+    <select name="strokeColor" id="strokeStyleSelect">
+        <option value="red">red</option>
+        <option value="green">green</option>
+        <option value="blue">blue</option>
+        <option value="yellow">yellow</option>
+        <option value="black" selected>black</option>
+    </select>
+    Guidewires
+    <input type="checkbox" id="guidewireCheckbox" checked/>
+    <input type="button" id="eraserAll" value="EraserAll"/>
+</div>
+<script type="text/javascript">
+    var canvas = document.getElementById('canvas') ,
+            context = canvas.getContext('2d') ,
+            eraserAllButton = document.getElementById('eraserAll') ,
+            strokeStyleSelect = document.getElementById('strokeStyleSelect') ,
+            guidewireCheckbox = document.getElementById('guidewireCheckbox') ,
+            drawingSurfaceImageData ,
+            mousedown = {} ,
+            rubberbandRect = {} ,
+            dragging = false ,
+            guidewires = guidewireCheckbox.checked;
+
+    // Function
+    function drawGrid() {
+
+    }
+
+    function windowToCanvas(x, y) {
+        // x,y是canvas外的事件x,y坐标
+        var bbox = canvas.getBoundingClientRect();
+        return {
+            x: x - bbox.left * ( canvas.width / bbox.width ),
+            y: y - bbox.top * (canvas.height / bbox.height)
+        }
+    }
+
+    // Save和Restore图像
+    function saveDrawingSurface() {
+        drawingSurfaceImageData = context.getImageData(0, 0, canvas.width, canvas.height);
+    }
+
+    function restoreDrawingSurface() {
+        context.putImageData(drawingSurfaceImageData, 0, 0);
+    }
+
+    // 橡皮筋触手~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // 更新作为提示出现的矩形对象
+    function updateRubberbandRectangle(loc) {
+        // Math.abs() 计算绝对值
+        rubberbandRect.width = Math.abs(loc.x - mousedown.x);
+        rubberbandRect.height = Math.abs(loc.y - mousedown.y);
+        if (loc.x > mousedown.x)  rubberbandRect.left = mousedown.x;
+        else rubberbandRect.left = loc.x;
+        if (loc.y > mousedown.y)  rubberbandRect.top = mousedown.y;
+        else rubberbandRect.top = loc.y;
+    }
+
+    // 绘制触手模型
+    function drawRubberbandShape(loc) {
+        context.beginPath();
+        context.moveTo(mousedown.x, mousedown.y);
+        context.lineTo(loc.x, loc.y);
+        context.stroke();
+    }
+
+    // 同时更新对象和绘图
+    function updateRubberband(loc) {
+        updateRubberbandRectangle(loc);
+        drawRubberbandShape(loc);
+    }
+
+    // 提示性矩形~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // 水平线
+    function drawHorzontalLine(y) {
+        context.beginPath();
+        context.moveTo(0, y + 0.5);
+        context.lineTo(canvas.width, y + 0.5);
+        context.stroke();
+    }
+
+    // 垂直线
+    function drawVerticalLine(x) {
+        context.beginPath();
+        context.moveTo(x + 0.5, 0);
+        context.lineTo(x + 0.5, canvas.height);
+        context.stroke();
+    }
+
+    // 绘制矩形
+    function drawGuidewires(x, y) {
+        context.save();
+        context.strokeStyle = 'rgba(0,0,230,0.4)';
+        context.lineWidth = 0.5;
+        drawVerticalLine(x);
+        drawHorzontalLine(y);
+        context.restore();
+    }
+
+    // Canvas 事件~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    canvas.onmousedown = function(e){
+        var loc = windowToCanvas(e.clientX , e.clientY);
+        e.preventDefault();
+        saveDrawingSurface();
+        mousedown.x = loc.x;
+        mousedown.y = loc.y;
+        dragging = true;
+    }
+
+    canvas.onmousemove = function (e) {
+        
+    }
+
+</script>
+</body>
+</html>
