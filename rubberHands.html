@@ -8,11 +8,12 @@
             width: 1200px;
             height: 600px;
             border: 1px #ddd dotted;
+            display: block;
+            margin: 20px auto;
         }
     </style>
 </head>
 <body>
-<canvas id="canvas" width="1200" height="600"></canvas>
 <div id="controls">
     Stroke Color:
     <select name="strokeColor" id="strokeStyleSelect">
@@ -26,23 +27,42 @@
     <input type="checkbox" id="guidewireCheckbox" checked/>
     <input type="button" id="eraserAll" value="EraserAll"/>
 </div>
+<canvas id="canvas" width="1200" height="600"></canvas>
+
 <script type="text/javascript">
     var canvas = document.getElementById('canvas') ,
             context = canvas.getContext('2d') ,
             eraserAllButton = document.getElementById('eraserAll') ,
             strokeStyleSelect = document.getElementById('strokeStyleSelect') ,
             guidewireCheckbox = document.getElementById('guidewireCheckbox') ,
-            drawingSurfaceImageData ,
-            mousedown = {} ,
-            rubberbandRect = {} ,
-            dragging = false ,
-            guidewires = guidewireCheckbox.checked;
+            drawingSurfaceImageData , // 临时保存的绘图对象
+            mousedown = {} , // mousedouwn是点击确定的线段一点
+            rubberbandRect = {} , // 绘制线段的对象
+            dragging = false , // 是否绘图中？
+            guidewires = guidewireCheckbox.checked; // 是否使用矩形提示
 
     // Function
-    function drawGrid() {
+    // 网格绘制
+    function drawGrid(color , stepX , stepY) {
+        context.strokeStyle = color;
+        context.lineWidth = 0.5;
 
+        for(var i = stepX+0.5; i<canvas.width; i+=stepX){
+            context.beginPath();
+            context.moveTo(i,0);
+            context.lineTo(i,canvas.height);
+            context.stroke();
+        }
+
+        for(var i  = stepY+0.5; i<canvas.height; i+=stepY){
+            context.beginPath();
+            context.moveTo(0,i);
+            context.lineTo(canvas.width,i);
+            context.stroke();
+        }
     }
 
+    // canvas内的坐标x,y转化
     function windowToCanvas(x, y) {
         // x,y是canvas外的事件x,y坐标
         var bbox = canvas.getBoundingClientRect();
@@ -52,18 +72,19 @@
         }
     }
 
-    // Save和Restore图像
+    // Save和Restore图像，将当前canvas图像保存到临时变量
     function saveDrawingSurface() {
         drawingSurfaceImageData = context.getImageData(0, 0, canvas.width, canvas.height);
     }
 
+    // 将临时变量的图像恢复到canvas
     function restoreDrawingSurface() {
         context.putImageData(drawingSurfaceImageData, 0, 0);
     }
 
-    // 橡皮筋触手~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    // 更新作为提示出现的矩形对象
+    // 绘制线段~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     function updateRubberbandRectangle(loc) {
+        // loc是随鼠标动的坐标，mousedouwn是点击确定的线段一点
         // Math.abs() 计算绝对值
         rubberbandRect.width = Math.abs(loc.x - mousedown.x);
         rubberbandRect.height = Math.abs(loc.y - mousedown.y);
@@ -73,7 +94,7 @@
         else rubberbandRect.top = loc.y;
     }
 
-    // 绘制触手模型
+    // 绘制线段
     function drawRubberbandShape(loc) {
         context.beginPath();
         context.moveTo(mousedown.x, mousedown.y);
@@ -87,7 +108,7 @@
         drawRubberbandShape(loc);
     }
 
-    // 提示性矩形~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // 提示性十字定位~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // 水平线
     function drawHorzontalLine(y) {
         context.beginPath();
@@ -107,8 +128,8 @@
     // 绘制矩形
     function drawGuidewires(x, y) {
         context.save();
-        context.strokeStyle = 'rgba(0,0,230,0.4)';
-        context.lineWidth = 0.5;
+        context.strokeStyle = '#777';
+        context.lineWidth = 1;
         drawVerticalLine(x);
         drawHorzontalLine(y);
         context.restore();
@@ -116,17 +137,64 @@
 
     // Canvas 事件~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     canvas.onmousedown = function(e){
+        // 按下鼠标开始绘图
         var loc = windowToCanvas(e.clientX , e.clientY);
         e.preventDefault();
         saveDrawingSurface();
         mousedown.x = loc.x;
         mousedown.y = loc.y;
         dragging = true;
-    }
+    };
 
     canvas.onmousemove = function (e) {
-        
-    }
+        var loc;
+        if(dragging){
+            e.preventDefault();
+
+            // 鼠标移动过程，canvas一边恢复点击时保存的图像，一边绘制出新的线段，看上去像选择线段终点
+            // 恢复是覆盖上一次移动造成的效果
+            loc = windowToCanvas(e.clientX , e.clientY);
+            restoreDrawingSurface();
+            updateRubberband(loc);
+            if(guidewires){
+                drawGuidewires(loc.x , loc.y);
+            }
+        }
+    };
+
+    canvas.onmouseup = function (e) {
+        var loc = windowToCanvas(e.clientX , e.clientY);
+
+        // 鼠标松开完成绘制，再重新覆盖原来的图像和绘制最后一次线段
+        restoreDrawingSurface();
+        updateRubberband(loc);
+        dragging = false;
+    };
+
+
+    // 控件事件~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // 橡皮擦：清空canvas，重新绘制表格
+    eraserAllButton.onclick = function (e) {
+        context.clearRect(0 , 0, canvas.width , canvas.height);
+        drawGrid('#ddd' , 10, 10);
+        saveDrawingSurface();
+    };
+
+    // 改变绘画颜色
+    strokeStyleSelect.onchange = function (e) {
+        context.strokeStyle = strokeStyleSelect.value;
+    };
+
+    // 是否显示提示性矩形
+    guidewireCheckbox.onchange = function (e) {
+        guidewires = guidewireCheckbox.checked;
+    };
+
+    // 初始化~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    drawGrid('#ddd' , 10 , 10);
+    context.strokeStyle = strokeStyleSelect.value;
+
+
 
 </script>
 </body>
