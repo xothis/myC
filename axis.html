@@ -1,0 +1,118 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>canvas测试</title>
+    <style type="text/css">
+        #canvas {
+            width: 1300px;
+            height: 630px;
+            display: block;
+            margin: 30px auto;
+            border: 1px #eee solid;
+        }
+    </style>
+</head>
+
+<body>
+<canvas id="canvas" width="1300" height="630"></canvas>
+<script type="text/javascript">
+
+    var canvas = document.getElementById('canvas') ,
+            context = canvas.getContext('2d') ,
+            AXIS_MARGIN = 40,       //轴距
+            AXIS_ORIGIN = { x: AXIS_MARGIN, y: canvas.height - AXIS_MARGIN } , //轴源坐标
+            AXIS_TOP = AXIS_MARGIN ,   //轴最上点
+            AXIS_RIGHT = canvas.width - AXIS_MARGIN ,  //轴最右点
+
+            HORIZON_TICK_SPACING = 10 ,    //水平间隔
+            VERTICAL_TICK_SPACING = 10 ,   //垂直间隔
+            AXIS_WIDTH = AXIS_RIGHT - AXIS_ORIGIN.x , //轴总宽度
+            AXIS_HEIGHT = AXIS_ORIGIN.y - AXIS_TOP ,  //轴总高度
+
+            NUM_HORIZONTALL_TICKS = AXIS_WIDTH / HORIZON_TICK_SPACING ,  //横坐标节点数
+            NUM_VERTICAL_TICKS = AXIS_HEIGHT / VERTICAL_TICK_SPACING , //纵坐标节点数
+
+            TICK_WIDTH = 10,
+            TICK_LINEWIDTH = 1.5 ,
+            TICKS_COLOR = 'blue',
+
+            AXIS_LINEWIDTH = 3.0,
+            AXIS_COLOR = 'orange';
+    function drawGrid(context, color, stepx, stepy) {
+        context.strokeStyle = color;
+        context.lineHeight = 0.5;
+
+        for (var i = stepx + 0.5; i < context.canvas.width; i += stepx) {
+            context.beginPath();
+            context.moveTo(i, 0);
+            context.lineTo(i, context.canvas.height);
+            context.stroke();
+        }
+
+        for (var i = stepy + 0.5; i < context.canvas.height; i += stepy) {
+            context.beginPath();
+            context.moveTo(0, i);
+            context.lineTo(context.canvas.width, i);
+            context.stroke();
+        }
+    }
+
+    function drawHorizontalAxis() {
+        context.beginPath();
+        context.moveTo(AXIS_ORIGIN.x, AXIS_ORIGIN.y);
+        context.lineTo(AXIS_RIGHT, AXIS_ORIGIN.y);
+        context.stroke();
+    }
+
+    function drawVerticalAxis() {
+        context.beginPath();
+        context.moveTo(AXIS_ORIGIN.x, AXIS_ORIGIN.y);
+        context.lineTo(AXIS_ORIGIN.x, AXIS_TOP);
+        context.stroke();
+    }
+
+    function drawVerticalAxisTicks() {
+        var deltaX;
+        for (var i = 1; i < NUM_VERTICAL_TICKS; i++) {
+            context.beginPath();
+            if (i % 5 === 0) deltaX = TICK_WIDTH;
+            else deltaX = TICK_WIDTH / 2;
+            context.moveTo(AXIS_ORIGIN.x - deltaX, AXIS_ORIGIN.y - i * VERTICAL_TICK_SPACING);
+            context.lineTo(AXIS_ORIGIN.x + deltaX, AXIS_ORIGIN.y - i * VERTICAL_TICK_SPACING);
+            context.stroke();
+        }
+    }
+
+    function drawHorizontalAxisTicks() {
+        var deltaY;
+        for (var i = 1; i < NUM_HORIZONTALL_TICKS; i++) {
+            context.beginPath();
+            if (i % 5 === 0) deltaY = TICK_WIDTH;
+            else deltaY = TICK_WIDTH / 2;
+            context.moveTo(AXIS_ORIGIN.x + i * HORIZON_TICK_SPACING, AXIS_ORIGIN.y - deltaY);
+            context.lineTo(AXIS_ORIGIN.x + i * HORIZON_TICK_SPACING, AXIS_ORIGIN.y + deltaY);
+            context.stroke();
+        }
+    }
+
+    function drawAxes(){
+        context.strokeStyle = AXIS_COLOR;
+        context.lineWidth = AXIS_LINEWIDTH;
+
+        drawHorizontalAxis();
+        drawVerticalAxis();
+
+        context.lineWidth = TICK_LINEWIDTH;
+        context.strokeStyle = TICKS_COLOR;
+
+        drawHorizontalAxisTicks();
+        drawVerticalAxisTicks();
+
+    }
+
+    drawGrid(context , '#ddd' , 10 , 10);
+    drawAxes();
+</script>
+</body>
+</html>

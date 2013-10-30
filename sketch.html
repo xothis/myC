@@ -1,0 +1,101 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>canvas测试</title>
+    <style type="text/css">
+        #canvas {
+            width: 1000px;
+            height: 630px;
+            display: block;
+            margin: 30px auto;
+            border: 1px #eee solid;
+        }
+    </style>
+</head>
+
+<body>
+<canvas id="canvas" width="1000" height="630"></canvas>
+<script type="text/javascript">
+    var canvas = document.getElementById('canvas') ,
+            context = canvas.getContext('2d') ,
+            gradient = context.createRadialGradient(canvas.width / 2, canvas.height, 10, canvas.width / 2, canvas.height, 100);
+
+    function drawGrid(context, color, stepx, stepy) {
+        context.strokeStyle = color;
+        context.lineHeight = 0.5;
+
+        for (var i = stepx + 0.5; i < context.canvas.width; i += stepx) {
+            context.beginPath();
+            context.moveTo(i, 0);
+            context.lineTo(i, context.canvas.height);
+            context.stroke();
+        }
+
+        for (var i = stepy + 0.5; i < context.canvas.height; i += stepy) {
+            context.beginPath();
+            context.moveTo(0, i);
+            context.lineTo(context.canvas.width, i);
+            context.stroke();
+        }
+    }
+    drawGrid(context, "#eee", 10, 10);
+
+    function rect(x, y, w, h, direction) {
+        if (direction) {
+            context.moveTo(x, y);
+            context.lineTo(x, y + h);
+            context.lineTo(x + w, y + h);
+            context.lineTo(x + w, y);
+        } else {
+            context.moveTo(x, y);
+            context.lineTo(x + w, y);
+            context.lineTo(x + w, y + h);
+            context.lineTo(x, y + h);
+        }
+        context.closePath();
+    }
+
+    function addOuterRectanglePath() {
+        context.rect(110, 25, 370, 335);
+    }
+
+    function addCirclePath() {
+        context.arc(300, 300, 40, 0, Math.PI * 2, true);
+    }
+
+    function addRectanglePath() {
+        rect(310, 55, 70, 35, true);
+    }
+
+    function addTrianglePath() {
+        context.moveTo(400, 200);
+        context.lineTo(250, 115);
+        context.lineTo(200, 200);
+        context.closePath();
+    }
+
+    context.fillStyle = 'goldenrod';
+    context.strokeStyle = 'rgba(0,0,0,0.7)';
+    context.shadowBlur = 15;
+    context.shadowColor = 'rgba(200,200,0,1)';
+    context.shadowOffsetX = 10;
+    context.shadowOffsetY = 10;
+    context.beginPath();
+    addOuterRectanglePath();
+    addCirclePath();
+    addRectanglePath();
+    addTrianglePath();
+    context.fill();
+
+    context.beginPath();
+    addOuterRectanglePath();
+    context.stroke();
+    context.beginPath();
+    addCirclePath();
+    addRectanglePath();
+    addTrianglePath();
+    context.stroke();
+</script>
+</body>
+</html>
