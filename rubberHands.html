@@ -90,6 +90,26 @@ function drawDashedLine(context, x1, y1, x2, y2, dashLength) {
     context.stroke();
 }
 
+// 绘制圆角矩形
+function roundedRect(cornerX , cornerY , width , height , cornerRadius){
+    context.beginPath();
+
+    if( width > 0 ){
+        context.moveTo(cornerX + cornerRadius , cornerY);
+    }else{
+        context.moveTo(cornerX - cornerRadius , cornerY);
+    }
+    context.arcTo(cornerX + width , cornerY , cornerX + width , cornerY + height , cornerRadius);
+    context.arcTo(cornerX + width , cornerY + height , cornerX , cornerY + height , cornerRadius);
+    context.arcTo(cornerX , cornerY + height , cornerX , cornerY , cornerRadius);
+//    if( width > 0){
+//        context.arcTo(cornerX , cornerY , cornerX + width , cornerY , cornerRadius);
+//    }else{
+//        context.arcTo(cornerX , cornerY , cornerX - width , cornerY , cornerRadius);
+//    }
+    context.stroke();
+}
+
 // canvas内的坐标x,y转化
 function windowToCanvas(x, y) {
     // x,y是canvas外的事件x,y坐标
@@ -242,6 +262,7 @@ drawGrid('#ddd', 10, 10);
 context.strokeStyle = strokeStyleSelect.value;
 context.lineWidth = 2;
 drawDashedLine(context, 20, 20, canvas.width - 20, 20, 30);
+roundedRect(100,100,400,200,20);
 
 </script>
 </body>
