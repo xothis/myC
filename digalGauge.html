@@ -1,0 +1,233 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>canvas测试</title>
+    <style type="text/css">
+        #canvas {
+            width: 1000px;
+            height: 630px;
+            display: block;
+            margin: 30px auto;
+            border: 1px #eee solid;
+        }
+    </style>
+</head>
+
+<body>
+<canvas id="canvas" width="1000" height="630"></canvas>
+<script type="text/javascript">
+var canvas = document.getElementById('canvas') ,
+        context = canvas.getContext('2d') ,
+        gradient = context.createRadialGradient(canvas.width / 2, canvas.height, 10, canvas.width / 2, canvas.height, 100);
+
+var centroid = {
+            radius: 10,
+            stroke_style: 'rgba(0,0,0,0.5)',
+            fill_style: 'rgba(80,190,240,0.6)'
+        } ,
+        ring = {
+            inner_radius: 45,
+            outter_radius: 55
+        } ,
+        annotations = {
+            fill_style: 'rgba(100,140,230,0.9)',
+            stroke_text_size: '12'
+        } ,
+        tick = {
+            width: 10,
+            long_stroke_style: 'rgba(100,140,230,0.9)',
+            short_stroke_style: 'rgba(100,140,230,0.7)'
+        } ,
+        tracking = {
+            dial_stroking_style: 'rgba(100,140,2130,0.5)'
+        } ,
+        guidewire = {
+            stroke_style: 'goldenrod',
+            fill_style: 'rgba(250,250,0,0.6)'
+        } ,
+        circle = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            radius: 150
+        };
+
+// Functions~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+function drawGrid(context, color, stepx, stepy) {
+    context.save();
+    context.shadowColor = undefined;
+    context.shadowOffsetX = 0;
+    context.shadowOffsetY = 0;
+    context.shadowBlur = 0;
+
+    context.fillStyle = '#fff';
+    context.strokeStyle = color;
+    context.lineHeight = 0.5;
+
+    for (var i = stepx + 0.5; i < context.canvas.width; i += stepx) {
+        context.beginPath();
+        context.moveTo(i, 0);
+        context.lineTo(i, context.canvas.height);
+        context.stroke();
+    }
+
+    for (var i = stepy + 0.5; i < context.canvas.height; i += stepy) {
+        context.beginPath();
+        context.moveTo(0, i);
+        context.lineTo(context.canvas.width, i);
+        context.stroke();
+    }
+    context.restore();
+}
+
+// 绘制圆心
+function drawCentroid() {
+    context.beginPath();
+    context.save();
+    context.strokeStyle = centroid.stroke_style;
+    context.fillStyle = centroid.fill_style;
+    context.arc(circle.x, circle.y, centroid.radius, 0, Math.PI * 2, false);
+    context.stroke();
+    context.fill();
+    context.restore();
+}
+
+// 绘制指针
+function drawCentroidGuidewire(loc) {
+    var angle = Math.PI/180*10, radius , endpt;
+    radius = circle.radius + ring.outter_radius;
+    if (loc.x >= circle.x) {
+        endpt = {
+            x: circle.x + radius * Math.cos(angle),
+            y: circle.y + radius * Math.sin(angle)
+        };
+    } else {
+        endpt = {
+            x: circle.x - radius * Math.cos(angle),
+            y: circle.y - radius * Math.sin(angle)
+        }
+    }
+
+    context.save();
+    context.strokeStyle = guidewire.stroke_style;
+    context.fillStyle = guidewire.fill_style;
+
+    context.beginPath();
+    context.moveTo(circle.x, circle.y);
+    context.lineTo(endpt.x, endpt.y);
+    context.stroke();
+
+    context.beginPath();
+    context.strokeStyle = tick.long_stroke_style;
+    context.arc(endpt.x, endpt.y, 5, 0, Math.PI * 2, false);
+    context.fill();
+    context.stroke();
+
+    context.restore();
+}
+
+// 绘制外环圈
+function drawRingOuterCircle() {
+    context.shadowColor = 'rgba(0,0,0,0.7)';
+    context.shadowOffsetX = 3;
+    context.shadowOffsetY = 3;
+    context.shadowBlur = 6;
+    context.strokeStyle = tracking.dial_stroking_style;
+    context.beginPath();
+    context.arc(circle.x, circle.y, circle.radius + ring.outter_radius, 0, Math.PI * 2, true);
+    context.stroke();
+}
+
+// 绘制环
+function drawRing() {
+    drawRingOuterCircle();
+
+    context.strokeStyle = 'rgba(0,0,0,0.1)';
+    context.arc(circle.x, circle.y, circle.radius + ring.inner_radius, 0, Math.PI * 2, false);
+    context.fillStyle = 'rgba(100,140,230,0.1)';
+    context.fill();
+    context.stroke();
+}
+
+// 绘制表内圈？
+function drawTickInnerCircle() {
+    context.save();
+    context.beginPath();
+    context.strokeStyle = 'rgba(0,0,0,0.1)';
+    context.arc(circle.x, circle.y, circle.radius + ring.inner_radius - tick.width, 0, Math.PI * 2, false);
+    context.stroke();
+    context.restore();
+}
+
+// 绘制刻度
+function drawTick(angle, radius, cut) {
+    var tickWidth = cut % 2 === 0 ? tick.width : tick.width / 2;
+
+    context.beginPath();
+    context.moveTo(circle.x + Math.cos(angle) * (radius - tickWidth), circle.y + Math.sin(angle) * (radius - tickWidth));
+    context.lineTo(circle.x + Math.cos(angle) * (radius), circle.y + Math.sin(angle) * (radius));
+    context.strokeStyle = tick.short_stroke_style;
+    context.stroke();
+}
+
+// 绘制刻度s
+function drawTicks() {
+    var radius = circle.radius + ring.inner_radius ,
+            angle = {
+                max: Math.PI * 2,
+                delta: Math.PI / 64
+            }   ,
+            tickWidth;
+    context.save();
+    for (var tickAngle = 0 , cnt = 0; tickAngle < angle.max; tickAngle += angle.delta , cnt++) {
+        drawTick(tickAngle, radius, cnt);
+    }
+    context.restore();
+}
+
+// 绘制注释
+function drawAnnotations() {
+    var radius = circle.radius + ring.inner_radius;
+
+    context.save();
+    context.fillStyle = annotations.fill_style;
+    context.font = annotations.stroke_text_size + 'px';
+
+    for (var angle = 0; angle < 2 * Math.PI; angle += Math.PI / 8) {
+        context.beginPath();
+        context.fillText((angle * 180 / Math.PI).toFixed(0),
+                circle.x + Math.cos(angle) * (radius - tick.width * 2),
+                circle.y + Math.sin(angle) * (radius - tick.width * 2)
+        );
+    }
+    context.restore();
+}
+
+// 绘制仪表
+function drawDial() {
+    var loc = {x: circle.x, y: circle.y};
+
+    drawCentroid();
+    drawCentroidGuidewire(loc);
+    drawRing();
+    drawTickInnerCircle();
+    drawTicks();
+    drawAnnotations();
+}
+
+// 初始化
+context.shadowColor = 'rgba(0,0,0,0.4)';
+context.shadowOffsetX = 2;
+context.shadowOffsetY = 2;
+context.shadowBlur = 4;
+
+context.textAlign = 'center';
+context.textBaseline = 'middle';
+
+drawGrid(context, 'lightgray', 20, 20);
+drawDial();
+
+</script>
+</body>
+</html>
