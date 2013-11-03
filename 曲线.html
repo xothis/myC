@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>canvas测试</title>
+    <style type="text/css">
+        #canvas {
+            width: 1300px;
+            height: 630px;
+            display: block;
+            margin: 30px auto;
+            border: 1px #eee solid;
+        }
+    </style>
+</head>
+
+<body>
+<canvas id="canvas" width="1300" height="630"></canvas>
+<script type="text/javascript">
+
+    var canvas = document.getElementById('canvas') ,
+            context = canvas.getContext('2d');
+
+    var endPoints = [
+        {x: 130, y: 70} ,
+        {x: 430, y: 270}
+    ];
+    var controlPoints = [
+        {x: 130, y: 250} ,
+        {x: 450, y: 70}
+    ];
+
+    function drawBezierCurve(){
+        context.strokeStyle = 'blue';
+        context.beginPath();
+        context.moveTo(endPoints[0].x , endPoints[0].y);
+        context.bezierCurveTo(controlPoints[0].x , controlPoints[0].y ,
+                              controlPoints[1].x , controlPoints[1].y ,
+                              endPoints[1].x , endPoints[1].y);
+        context.stroke();
+    }
+    drawBezierCurve();
+</script>
+</body>
+</html>

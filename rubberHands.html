@@ -26,9 +26,13 @@
     <select name="drawWhat" id="drawWhat">
         <option value="line" selected>line</option>
         <option value="circle">circle</option>
+        <option value="polygon">polygon</option>
     </select>
+    <input type="text" name="polygonSides" id="polygonSides"/>
+    <input type="text" name="polygonAngle" id="polygonAngle"/>
     Guidewires
     <input type="checkbox" id="guidewireCheckbox" checked/>
+    <input type="checkbox" id="editCheckbox"/>
     <input type="button" id="eraserAll" value="EraserAll"/>
 </div>
 <canvas id="canvas" width="1200" height="600"></canvas>
@@ -40,12 +44,20 @@ var canvas = document.getElementById('canvas') ,
         strokeStyleSelect = document.getElementById('strokeStyleSelect') ,
         guidewireCheckbox = document.getElementById('guidewireCheckbox') ,
         drawWhatSelect = document.getElementById('drawWhat') ,
+        polygonSidesInput = document.getElementById('polygonSides') ,
+        polygonAngleInput = document.getElementById('polygonAngle') ,
+        editCheckBox = document.getElementById('editCheckbox') ,
         drawWhat = drawWhatSelect.value ,
         drawingSurfaceImageData , // 临时保存的绘图对象
         mousedown = {} , // mousedouwn是点击确定的线段一点
         rubberbandRect = {} , // 绘制线段的对象
         dragging = false , // 是否绘图中？
-        guidewires = guidewireCheckbox.checked; // 是否使用矩形提示
+        draggingOffsetX ,
+        draggingOffserY ,
+        guidewires = guidewireCheckbox.checked, // 是否使用矩形提示
+        polygons = [] ,
+        isEdit = editCheckBox.checked,
+        editing = false;
 
 
 // Function
@@ -69,6 +81,57 @@ function drawGrid(color, stepX, stepY) {
     }
 }
 
+// 点对象
+function Point(x, y) {
+    this.x = x;
+    this.y = y;
+}
+
+// 多边形对象
+function Polygon(centerX, centerY, radius, sides, startAngle, strokeStyle, fillStyle) {
+    this.x = centerX;
+    this.y = centerY;
+    this.radius = radius;
+    this.sides = sides;
+    this.startAngle = startAngle;
+    this.strokeStyle = strokeStyle;
+    this.fillStyle = fillStyle;
+}
+
+Polygon.prototype = {
+    getPoints: function () {
+        var points = [] ,
+                angle = this.startAngle || 0;
+
+        for (var i = 0; i < this.sides; i++) {
+            points.push(new Point(this.x + this.radius * Math.sin(angle), this.y - this.radius * Math.cos(angle)));
+            angle += 2 * Math.PI / this.sides;
+        }
+        return points;
+    },
+    createPath: function (context) {
+        var points = this.getPoints();
+        context.beginPath();
+        context.moveTo(points[0].x, points[0].y);
+        for (var i = 1; i < this.sides; ++i) {
+            context.lineTo(points[i].x, points[i].y);
+        }
+        context.closePath();
+    },
+    stroke: function (context) {
+        context.save();
+        this.createPath(context);
+        context.strokeStyle = this.strokeStyle;
+        context.stroke();
+        context.restore();
+    },
+    move: function (x, y) {
+        this.x = x;
+        this.y = y;
+    }
+
+};
+
 // 绘制虚线
 function drawDashedLine(context, x1, y1, x2, y2, dashLength) {
     // dashLength 虚线每节的长度
@@ -91,17 +154,17 @@ function drawDashedLine(context, x1, y1, x2, y2, dashLength) {
 }
 
 // 绘制圆角矩形
-function roundedRect(cornerX , cornerY , width , height , cornerRadius){
+function roundedRect(cornerX, cornerY, width, height, cornerRadius) {
     context.beginPath();
 
-    if( width > 0 ){
-        context.moveTo(cornerX + cornerRadius , cornerY);
-    }else{
-        context.moveTo(cornerX - cornerRadius , cornerY);
+    if (width > 0) {
+        context.moveTo(cornerX + cornerRadius, cornerY);
+    } else {
+        context.moveTo(cornerX - cornerRadius, cornerY);
     }
-    context.arcTo(cornerX + width , cornerY , cornerX + width , cornerY + height , cornerRadius);
-    context.arcTo(cornerX + width , cornerY + height , cornerX , cornerY + height , cornerRadius);
-    context.arcTo(cornerX , cornerY + height , cornerX , cornerY , cornerRadius);
+    context.arcTo(cornerX + width, cornerY, cornerX + width, cornerY + height, cornerRadius);
+    context.arcTo(cornerX + width, cornerY + height, cornerX, cornerY + height, cornerRadius);
+    context.arcTo(cornerX, cornerY + height, cornerX, cornerY, cornerRadius);
 //    if( width > 0){
 //        context.arcTo(cornerX , cornerY , cornerX + width , cornerY , cornerRadius);
 //    }else{
@@ -142,14 +205,18 @@ function updateRubberbandRectangle(loc) {
     else rubberbandRect.top = loc.y;
 }
 
-// 绘制线段
+// 绘制所选图形
 function drawRubberbandShape(loc) {
     if (drawWhat == 'line') {
+
+        // 绘制线段
         context.beginPath();
         context.moveTo(mousedown.x, mousedown.y);
         context.lineTo(loc.x, loc.y);
         context.stroke();
-    } else {
+    } else if (drawWhat == 'circle') {
+
+        // 绘制圆形
         var angle , radius;
         if (mousedown.y === loc.y) {
             radius = Math.abs(loc.x - mousedown.x);
@@ -159,9 +226,24 @@ function drawRubberbandShape(loc) {
         }
 
         context.beginPath();
-        context.arc(mousedown.x , mousedown.y , radius , 0 , Math.PI*2 , false);
+        context.arc(mousedown.x, mousedown.y, radius, 0, Math.PI * 2, false);
         context.stroke();
         context.fill();
+    }
+    else if (drawWhat == 'polygon') {
+
+        // 绘制多边形
+        var sides = (parseInt(polygonSidesInput.value) - 0) || 4;
+        var startAngle = (parseInt(polygonAngleInput.value) - 0) || 180;
+        var polygon = new Polygon(mousedown.x, mousedown.y, rubberbandRect.width, sides, (Math.PI / 180) * startAngle
+                , context.strokeStyle, context.fillStyle);
+        context.beginPath();
+        polygon.createPath(context);
+        polygon.stroke(context);
+        polygon.fill(context);
+        if (!dragging) {
+            polygons.push(polygon);
+        }
     }
 
 }
@@ -199,15 +281,47 @@ function drawGuidewires(x, y) {
     context.restore();
 }
 
-// Canvas 事件~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-canvas.onmousedown = function (e) {
-    // 按下鼠标开始绘图
-    var loc = windowToCanvas(e.clientX, e.clientY);
-    e.preventDefault();
+// Dragging
+function startDragging(loc) {
     saveDrawingSurface();
     mousedown.x = loc.x;
     mousedown.y = loc.y;
-    dragging = true;
+}
+
+function startEditing() {
+    canvas.style.cursor = 'pointer';
+    editing = true;
+}
+
+function stopEditing() {
+    canvas.style.cursor = 'crosshair';
+    editing = false;
+}
+
+// Canvas 事件~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+canvas.onmousedown = function (e) {
+
+    // 按下鼠标开始绘图
+    var loc = windowToCanvas(e.clientX, e.clientY);
+    e.preventDefault();
+    if (editing) {
+        polygons.forEach(function (polygon) {
+            polygon.createPath(context);
+            if (context.isPointInPath(loc.x, loc.y)) {
+                startDragging(loc);
+                dragging = polygon;
+                draggingOffsetX = loc.x - polygon.x;
+                draggingOffserY = loc.y - polygon.y;
+                return;
+            }
+        })
+    }
+    else {
+        saveDrawingSurface();
+        mousedown.x = loc.x;
+        mousedown.y = loc.y;
+        dragging = true;
+    }
 };
 
 canvas.onmousemove = function (e) {
@@ -215,24 +329,41 @@ canvas.onmousemove = function (e) {
     if (dragging) {
         e.preventDefault();
 
-        // 鼠标移动过程，canvas一边恢复点击时保存的图像，一边绘制出新的线段，看上去像选择线段终点
-        // 恢复是覆盖上一次移动造成的效果
-        loc = windowToCanvas(e.clientX, e.clientY);
-        restoreDrawingSurface();
-        updateRubberband(loc);
-        if (guidewires) {
-            drawGuidewires(loc.x, loc.y);
+        if (dragging && editing) {
+            dragging.x = loc.x - draggingOffsetX;
+            dragging.y = loc.y - draggingOffserY;
+            context.beginPath();
+            dragging.createPath(context);
+            dragging.stroke(context);
         }
+        else {
+            if (dragging) {
+                // 鼠标移动过程，canvas一边恢复点击时保存的图像，一边绘制出新的线段，看上去像选择线段终点
+                // 恢复是覆盖上一次移动造成的效果
+                loc = windowToCanvas(e.clientX, e.clientY);
+                restoreDrawingSurface();
+                updateRubberband(loc);
+                if (guidewires) {
+                    drawGuidewires(loc.x, loc.y);
+                }
+            }
+        }
+
     }
 };
 
 canvas.onmouseup = function (e) {
     var loc = windowToCanvas(e.clientX, e.clientY);
 
-    // 鼠标松开完成绘制，再重新覆盖原来的图像和绘制最后一次线段
-    restoreDrawingSurface();
-    updateRubberband(loc);
     dragging = false;
+
+    if (!editing) {
+        // 鼠标松开完成绘制，再重新覆盖原来的图像和绘制最后一次线段
+        restoreDrawingSurface();
+        updateRubberband(loc);
+        dragging = false;
+    }
+
 };
 
 
@@ -257,12 +388,14 @@ guidewireCheckbox.onchange = function (e) {
 drawWhatSelect.onchange = function () {
     drawWhat = drawWhatSelect.value;
 };
+
+editCheckBox.onchange = function () {
+    isEdit = editCheckBox.checked;
+};
 // 初始化~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 drawGrid('#ddd', 10, 10);
 context.strokeStyle = strokeStyleSelect.value;
 context.lineWidth = 2;
-drawDashedLine(context, 20, 20, canvas.width - 20, 20, 30);
-roundedRect(100,100,400,200,20);
 
 </script>
 </body>

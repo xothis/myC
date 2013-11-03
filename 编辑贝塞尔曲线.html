@@ -1,0 +1,254 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>无标题文档</title>
+    <style>
+        body {
+            background: #eeeeee;
+        }
+
+        .floatingControls {
+            position: absolute;
+            left: 150px;
+            top: 100px;
+            width: 300px;
+            padding: 20px;
+            border: thin solid rgba(0, 0, 0, 0.3);
+            background: rgba(0, 0, 200, 0.1);
+            color: blue;
+            font: 14px Arial;
+            box-shadow: rgba(0, 0, 0, 0.2) 6px 6px 8px;
+            display: none;
+        }
+
+        .floatingControls p {
+            margin-top: 0px;
+            margin-bottom: 20px;
+        }
+
+        #controls {
+            position: absolute;
+            left: 25px;
+            top: 25px;
+        }
+
+        #canvas {
+            background: #ffffff;
+            cursor: pointer;
+            margin: 0 auto;
+            display: block;
+            margin-top: 60px;
+            box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+
+<body>
+<canvas id='canvas' width='1200' height='600'>
+</canvas>
+
+<div id='controls'>
+    Stroke color: <select id='strokeStyleSelect'>
+    <option value='red'>red</option>
+    <option value='green'>green</option>
+    <option value='blue'>blue</option>
+    <option value='orange'>orange</option>
+    <option value='cornflowerblue'>cornflowerblue</option>
+    <option value='goldenrod'>goldenrod</option>
+    <option value='navy' selected>navy</option>
+    <option value='purple'>purple</option>
+</select>
+    Guidewires: <input id='guidewireCheckbox' type='checkbox' checked/>
+    <input id='eraseAllButton' type='button' value='Erase all'/>
+</div>
+
+<div id='instructions' class='floatingControls'>
+    <p>Drag the curve end- and control points to
+        change the shape of the curve.</p>
+
+    <p>When you are done dragging end- and control points,
+        click outside of the points to finalize the curve.</p>
+
+    <input id='instructionsOkayButton' type='button' value='Okay' autofocus/>
+    <input id='instructionsNoMoreButton' type='button'
+           value='Do not show these instructions again'/>
+</div>
+<script type="text/javascript">
+    var canvas = document.getElementById('canvas'),
+            context = canvas.getContext('2d'),
+            eraseAllButton = document.getElementById('eraseAllButton'),
+            strokeStyleSelect = document.getElementById('strokeStyleSelect'),
+            guidewireCheckbox = document.getElementById('guidewireCheckbox'),
+            instructions = document.getElementById('instructions'), // 显示提示
+            instructionsOkayButton = document.getElementById('instructionsOkayButton'),
+            instructionsNoMoreButton = document.getElementById('instructionsNoMoreButton'),
+
+            showInstructions = true,
+
+    // 网格属性
+            grid = {
+                stroke_style: 'lightblue',
+                spancing: 10
+            },
+
+    // 控制点属性
+            controlPoint = {
+                radius: 5,
+                strokeStyle: 'blue',
+                fillStyle: 'rgba(255,255,0,0.5)'
+            },
+
+    // 终结点属性
+            endPoint = {
+                strokeStyle: 'navy',
+                fillStyle: 'rgba(0,255,0,0.5)'
+            },
+
+    //  辅助线颜色
+            guidewireColor = 'rgba(0,0,230,0.4)' ,
+
+            drawingImageData,      // 临时绘图对象
+
+            mousedown = {},        // 鼠标定下点
+            rubberbandRect = {},   // 鼠标下点和当前点组成的矩形
+
+            dragging = false,      // 是否按下鼠标
+            draggingPoint = false, // 按下鼠标时的当前点
+
+            endPoints = [
+                {},
+                {}
+            ],  // 结束点
+            controlPoints = [
+                {},
+                {}
+            ],  // 控制点
+            editing = false,            // 是否正在编辑
+
+            guidewires = guidewireCheckbox.checked;
+
+
+    function drawGrid(color, stepx, stepy) {
+        context.save()
+
+        context.strokeStyle = color;
+        context.lineWidth = 0.5;
+        context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+
+        for (var i = stepx + 0.5; i < context.canvas.width; i += stepx) {
+            context.beginPath();
+            context.moveTo(i, 0);
+            context.lineTo(i, context.canvas.height);
+            context.stroke();
+        }
+
+        for (var i = stepy + 0.5; i < context.canvas.height; i += stepy) {
+            context.beginPath();
+            context.moveTo(0, i);
+            context.lineTo(context.canvas.width, i);
+            context.stroke();
+        }
+
+        context.restore();
+    }
+
+    function windowToCanvas(x, y) {
+        var bbox = canvas.getBoundingClientRect();
+
+        return { x: x - bbox.left * (canvas.width / bbox.width),
+            y: y - bbox.top * (canvas.height / bbox.height)
+        };
+    }
+
+    // 保存和恢复
+
+    function saveDrawingSurface() {
+        drawingImageData = context.getImageData(0, 0,
+                canvas.width, canvas.height);
+    }
+
+    function restoreDrawingSurface() {
+        context.putImageData(drawingImageData, 0, 0);
+    }
+
+    // 即使更新矩形对象
+
+    function updateRubberbandRectangle(loc) {
+        rubberbandRect.width = Math.abs(loc.x - mousedown.x);
+        rubberbandRect.height = Math.abs(loc.y - mousedown.y);
+
+        if (loc.x > mousedown.x) rubberbandRect.left = mousedown.x;
+        else                     rubberbandRect.left = loc.x;
+
+        if (loc.y > mousedown.y) rubberbandRect.top = mousedown.y;
+        else                     rubberbandRect.top = loc.y;
+    }
+
+    // 绘制贝塞尔曲线
+    function drawBezierCurve() {
+        context.beginPath();
+        context.moveTo(endPoints[0].x, endPoints[0].y);
+        context.bezierCurveTo(controlPoints[0].x, controlPoints[0].y,
+                controlPoints[1].x, controlPoints[1].y,
+                endPoints[1].x, endPoints[1].y);
+        context.stroke();
+    }
+
+    // 更新贝塞尔曲线关键点
+    function updateEndAndControlPoints(){
+        endPoints[0].x = rubberbandRect.left;
+        endPoints[0].y = rubberbandRect.top;
+
+        endPoints[1].x = rubberbandRect.left + rubberbandRect.width;
+        endPoints[1].y = rubberbandRect.top + rubberbandRect.height;
+
+        controlPoints[0].x = rubberbandRect.left;
+        controlPoints[0].y = rubberbandRect.top + rubberbandRect.height;
+
+        controlPoints[1].x = rubberbandRect.left + rubberbandRect.width;
+        controlPoints[1].y = rubberbandRect.top;
+    }
+
+    // 绘制
+    function drawRubberbandShape(loc){
+        updateEndAndControlPoints();
+        drawBezierCurve();
+    }
+
+    // 更新
+    function updateRubberband(loc){
+        updateRubberbandRectangle(loc);
+        drawRubberbandShape(loc);
+    }
+
+    // 辅助线
+
+    function drawHorizontalGuidewire (y) {
+       context.beginPath();
+       context.moveTo(0, y + 0.5);
+       context.lineTo(context.canvas.width, y + 0.5);
+       context.stroke();
+    }
+
+    function drawVerticalGuidewire (x) {
+       context.beginPath();
+       context.moveTo(x + 0.5, 0);
+       context.lineTo(x + 0.5, context.canvas.height);
+       context.stroke();
+    }
+
+    function drawGuidewires(x, y) {
+       context.save();
+       context.strokeStyle = guidewireColor;
+       context.lineWidth = 0.5;
+       drawVerticalGuidewire(x);
+       drawHorizontalGuidewire(y);
+       context.restore();
+    }
+
+    // 绘制控制点和关键点
+    
+</script>
+</body>
+</html>
